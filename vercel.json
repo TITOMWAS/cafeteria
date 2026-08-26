@@ -5,7 +5,9 @@
       "framework": "vite"
     },
     "backend": {
-      "root": "backend"
+      "root": "backend",
+      "runtime": "node",
+      "entrypoint": "index.js"
     }
   },
   "rewrites": [
