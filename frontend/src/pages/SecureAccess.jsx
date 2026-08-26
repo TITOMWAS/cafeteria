@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { loginStaff, setupTotp } from '../services/api';
+import Turnstile from '../components/Turnstile';
 
 const SecureAccess = () => {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ const SecureAccess = () => {
   const [enrollment, setEnrollment] = useState(null); // { otpauth_uri }
   const [showEnrollForm, setShowEnrollForm] = useState(false);
   const [needsOtpSetup, setNeedsOtpSetup] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaKey, setCaptchaKey] = useState(0); // forces a fresh widget after each attempt
 
   useEffect(() => {
     if (!loading && user && ['staff', 'admin'].includes(user.role)) {
@@ -29,7 +32,7 @@ const SecureAccess = () => {
     e.preventDefault();
     setLoadingSubmit(true);
     try {
-      const res = await loginStaff(form.email.trim(), form.password, form.token.trim());
+      const res = await loginStaff(form.email.trim(), form.password, form.token.trim(), captchaToken || undefined);
       login(res.user, res.token);
       sessionStorage.removeItem('cafeteria_staff_credentials');
       addToast(`Welcome back, ${res.user.name}!`, 'success');
@@ -43,6 +46,8 @@ const SecureAccess = () => {
       }
     } finally {
       setLoadingSubmit(false);
+      setCaptchaToken('');
+      setCaptchaKey((k) => k + 1); // re-render challenge for the next attempt
     }
   };
 
@@ -50,7 +55,7 @@ const SecureAccess = () => {
   const handleSetup = async () => {
     setLoadingSubmit(true);
     try {
-      const res = await setupTotp(form.email.trim(), form.password);
+      const res = await setupTotp(form.email.trim(), form.password, captchaToken || undefined);
       setEnrollment(res.data);
       setShowEnrollForm(true);
       setNeedsOtpSetup(false);
@@ -59,6 +64,8 @@ const SecureAccess = () => {
       addToast(err.message || 'Could not start 2FA setup', 'error');
     } finally {
       setLoadingSubmit(false);
+      setCaptchaToken('');
+      setCaptchaKey((k) => k + 1);
     }
   };
 
@@ -101,6 +108,8 @@ const SecureAccess = () => {
                 </span>
               )}
             </div>
+
+            <Turnstile key={captchaKey} onToken={setCaptchaToken} />
 
             <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loadingSubmit}>
               {loadingSubmit ? 'Verifying...' : 'Unlock Dashboard'}

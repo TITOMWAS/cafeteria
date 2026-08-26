@@ -468,8 +468,20 @@ Guests are covered too — their carryovers are matched by phone number instead 
 | `PAYHERO_CHANNEL_ID` | Your M-Pesa collection channel id |
 | `PAYHERO_CALLBACK_URL` | Optional async webhook URL |
 | `PUBLIC_BASE_URL` | Optional host prefix for uploaded-image URLs behind a proxy |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile server key — absent ⇒ captcha verification skipped (dev) |
+| `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (reference; the browser uses its own copy) |
+| `CORS_ORIGINS` | Extra allowed browser origins, e.g. your Cloudflare Pages/Workers domain |
+| `TRUST_PROXY` | Express `trust proxy` setting behind the Cloudflare proxy/tunnel |
 
-Frontend (`frontend/.env`): `VITE_API_URL` — defaults to `http://localhost:5001/api`.
+Frontend (`frontend/.env`, see `.env.example`): `VITE_API_URL` — defaults to `http://localhost:5001/api`; `VITE_TURNSTILE_SITE_KEY` — Cloudflare Turnstile site key. The captcha widget renders automatically once the site key is present and stays hidden in dev.
+
+### Connecting Cloudflare
+
+1. **Turnstile (captcha)** — create a widget at [dash.cloudflare.com → Turnstile](https://dash.cloudflare.com) for your domain:
+   - Copy the **Site Key** → set `VITE_TURNSTILE_SITE_KEY` in `frontend/.env` (rebuild the frontend).
+   - Copy the **Secret Key** → set `TURNSTILE_SECRET_KEY` in `backend/.env`.
+   - With both set, every student login, staff login, 2FA setup and forgot-password call is verified server-side against `challenges.cloudflare.com/turnstile/v0/siteverify`. Leave either blank and everything runs in simulated mode.
+2. **Proxy / CDN** — point a Cloudflare DNS record (proxied 🟠) at your backend host, add the public origin to `CORS_ORIGINS`, and keep `TRUST_PROXY=loopback, linklocal, uniquelocal` so rate limiting sees real client IPs via `CF-Connecting-IP`.
 
 ---
 

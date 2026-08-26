@@ -5,6 +5,7 @@ import logo from '../assets/logo.jpeg';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { loginStudent, forgotPassword, resetPassword } from '../services/api';
+import Turnstile from '../components/Turnstile';
 
 const SESSION_SCHEDULE = [
   { icon: '🌅', label: 'Breakfast', time: '06:00 – 10:00' },
@@ -19,18 +20,22 @@ const LoginModal = ({ onClose, onSuccess }) => {
   const [identifier, setIdentifier] = useState('');
   const [resetCtx, setResetCtx] = useState(null); // { token }
   const [resetForm, setResetForm] = useState({ new_password: '', confirm_password: '' });
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaKey, setCaptchaKey] = useState(0); // forces a fresh widget after each attempt
   const { addToast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await loginStudent(form.student_id.trim(), form.password);
+      const res = await loginStudent(form.student_id.trim(), form.password, captchaToken || undefined);
       onSuccess(res.user, res.token, res.refresh_token);
     } catch (err) {
       addToast(err.message || 'Login failed. Check your credentials.', 'error');
     } finally {
       setLoading(false);
+      setCaptchaToken('');
+      setCaptchaKey((k) => k + 1); // re-render challenge for the next attempt
     }
   };
 
@@ -38,7 +43,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await forgotPassword(identifier.trim());
+      const res = await forgotPassword(identifier.trim(), captchaToken || undefined);
       if (res.reset_token) {
         setResetCtx({ token: res.reset_token });
         setMode('reset');
@@ -51,6 +56,8 @@ const LoginModal = ({ onClose, onSuccess }) => {
       addToast(err.message || 'Could not start password reset', 'error');
     } finally {
       setLoading(false);
+      setCaptchaToken('');
+      setCaptchaKey((k) => k + 1);
     }
   };
 
@@ -95,6 +102,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
                 <input className="form-input" type="password" placeholder="Enter your password" autoComplete="current-password"
                   value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
               </div>
+              <Turnstile key={`login-${captchaKey}`} onToken={setCaptchaToken} />
               <button type="button" className="btn btn-ghost" style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--text-muted)' }}
                 onClick={() => setMode('forgot')}>
                 <KeyRound size={13} /> Forgot password?
@@ -112,6 +120,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
                 <input className="form-input" type="text" placeholder="CT207/119148/24 or you@example.com"
                   value={identifier} onChange={(e) => setIdentifier(e.target.value)} required />
               </div>
+              <Turnstile key={`forgot-${captchaKey}`} onToken={setCaptchaToken} />
             </form>
           )}
 
