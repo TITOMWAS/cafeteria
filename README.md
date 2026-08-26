@@ -1,98 +1,57 @@
-# CAFTERIA SYSTEM
+# Synapse Cafeteria
 
-A full-stack application with React/TailwindCSS frontend and Express/PostgreSQL backend.
+An installable (PWA) campus cafeteria pre-ordering system — React + Express + PostgreSQL with M-Pesa payments (PayHero) and two-factor authentication for staff.
 
-## Project Structure
+📖 **Full documentation: [`DOCUMENTATION.md`](./DOCUMENTATION.md)**
 
-```
-CAFTERIA-SYSTEM/
-├── frontend/          # React + Vite + TailwindCSS
-│   ├── src/
-│   ├── public/
-│   ├── package.json
-│   └── vite.config.js
-│
-└── backend/           # Express + PostgreSQL
-    ├── package.json
-    └── node_modules/
-```
+## Quick Start
 
-## Tech Stack
-
-### Frontend
-- React 19
-- Vite 7
-- TailwindCSS 4
-- Axios
-- React Router DOM
-
-### Backend
-- Express.js 5
-- PostgreSQL (pg)
-- Cors
-- Dotenv
-- Bcryptjs
-- Jsonwebtoken
-- Nodemon (dev)
-
-## Prerequisites
-
-- Node.js 18+
-- PostgreSQL 14+
-- npm
-
-## Getting Started
-
-### 1. Database Setup
-
-Make sure PostgreSQL is running and create a database:
+> Requires Node.js 18+ and Docker
 
 ```bash
-createdb cafteria
-# or
-psql -c "CREATE DATABASE cafteria;"
+npm run setup     # install root + backend + frontend deps
+npm run db        # start PostgreSQL (auto-creates & seeds tables)
+npm run dev       # run backend (:5001) + frontend (:5173) together
 ```
 
-### 2. Backend Setup
+## Login Credentials — all 4 dashboards
 
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your database credentials
+| Dashboard | URL | Credentials |
+|---|---|---|
+| **Student Portal** | landing page → Student card | `CT207/119148/24` / `password` (or self-register) |
+| **Guest Ordering** | landing page → Guest card | no account needed |
+| **Cashier Console** | `/secure-access` → `/cashier` | `staff@cafeteria.ac.ke` / `password` |
+| **Management Console** | `/secure-access` → `/admin` | `admin@cafeteria.ac.ke` / `password` + **2FA code** |
 
-npm start        # Production
-npm run dev      # Development (with nodemon)
-```
+Management access is **strictly OTP-gated**: press **Set up 2FA** on `/secure-access`, scan the QR with your authenticator app, then sign in with the 6-digit code. Without it, the dashboard can never be reached. Cashier/staff accounts are created by management (Admin → Users & Staff) and sign in with just email + password.
 
-### 3. Frontend Setup
+Payments work out of the box in **simulated mode** (full M-Pesa STK-style flow, no real money). Add live PayHero credentials in `backend/.env` to go real.
 
-```bash
-cd frontend
-npm run dev
-```
+Install the app: visit in Chrome/Edge and use the install card that appears (iOS: Share → Add to Home Screen).
 
-## Environment Variables
+## Environment
 
-Create a `.env` file in the backend directory:
+Copy/edit `backend/.env` (defaults work for local dev):
 
 ```env
-PORT=5000
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=cafteria
-JWT_SECRET=your_secret_key
+PORT=5001
+DATABASE_URL=postgresql://postgres:password@localhost:5433/cafeteria_db
+JWT_SECRET=cafeteria_secret_jwt_2026
+NODE_ENV=development
+PAYHERO_USERNAME=
+PAYHERO_PASSWORD=
+PAYHERO_CHANNEL_ID=
 ```
 
-## Available Scripts
+Leave PayHero vars blank in dev — orders use mock payment references automatically.
 
-### Frontend
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
+## Scripts
 
-### Backend
-- `npm start` - Start production server
-- `npm run dev` - Start development server with nodemon
+| Command (root) | Action |
+|---|---|
+| `npm run setup` | install all dependencies |
+| `npm run db` / `db:reset` | start DB / wipe & re-seed it |
+| `npm run dev` | backend + frontend concurrently |
+| `npm run build` | production frontend build |
 
+Backend-only: `npm --prefix backend run dev` · Frontend-only: `npm --prefix frontend run dev`

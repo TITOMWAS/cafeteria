@@ -1,0 +1,19 @@
+{
+  "name": "cafeteria-system",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Campus Cafeteria - full-stack ordering system (React + Express + PostgreSQL)",
+  "scripts": {
+    "setup": "npm install && npm --prefix backend install && npm --prefix frontend install",
+    "db": "docker compose up -d db",
+    "db:reset": "docker compose down -v && docker compose up -d db",
+    "dev:server": "npm --prefix backend run dev",
+    "dev:client": "npm --prefix frontend run dev",
+    "dev": "concurrently -n server,client -c magenta,cyan \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix backend start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
