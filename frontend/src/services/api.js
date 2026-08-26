@@ -1,4 +1,7 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+// In production (Vercel) the /api rewrite in vercel.json proxies to the backend
+// service, so a relative base works with zero config. Set VITE_API_URL to point
+// elsewhere (e.g. a separate API domain).
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const getToken = () => localStorage.getItem('cafeteria_token');
 const getRefreshToken = () => localStorage.getItem('cafeteria_refresh_token');
