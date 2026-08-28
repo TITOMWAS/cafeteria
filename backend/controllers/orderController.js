@@ -74,8 +74,8 @@ const placeOrder = async (req, res) => {
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'No items in order' });
     }
-    if (!phone_number) {
-      return res.status(400).json({ success: false, message: 'Phone number is required' });
+    if (!phone_number || !/^\+?\d[\d\s-]{8,14}$/.test(String(phone_number).trim())) {
+      return res.status(400).json({ success: false, message: 'A valid phone number is required' });
     }
     if (!reference) {
       return res.status(400).json({ success: false, message: 'Payment reference required' });
@@ -341,7 +341,7 @@ const updateOrderStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
     const result = await pool.query(
-      `UPDATE orders SET status = $1, served_at = CASE WHEN $1 = 'served' THEN NOW() ELSE served_at END
+      `UPDATE orders SET status = $1::text, served_at = CASE WHEN $1::text = 'served' THEN NOW() ELSE served_at END
        WHERE id = $2 RETURNING *`,
       [status.toLowerCase(), id]
     );
@@ -352,6 +352,7 @@ const updateOrderStatus = async (req, res) => {
     emitOrderEvent('status_changed', { orderId: Number(id), status: result.rows[0].status });
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    console.error('updateOrderStatus error:', error.message);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -460,9 +461,10 @@ const verifyPayheroPayment = (reference) =>
     // Development mode: mock references auto-pass so the app is testable offline
     if (reference.startsWith('mock_')) return resolve({ success: true });
 
-    // Sandbox mode: SBOX- references pass verification without touching PayHero.
-    // Only honoured when PAYHERO_MODE=sandbox so they can never be replayed live.
-    if (reference.startsWith('SBOX-') && payheroMode() === 'sandbox') {
+    // Sandbox mode: only well-formed SBOX-CAF-<timestamp>-<rand> refs issued by
+    // our own /initiate-payment endpoint pass, and only when PAYHERO_MODE=sandbox,
+    // so they can never be forged or replayed against live mode.
+    if (/^SBOX-CAF-\d{13}-\d{3,10}$/.test(reference) && payheroMode() === 'sandbox') {
       return resolve({ success: true, sandbox: true });
     }
 

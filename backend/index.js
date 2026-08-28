@@ -68,6 +68,14 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+
+  // One-time self-heal: databases seeded before the meals.name unique constraint
+  // may contain duplicate meal rows — remove them and add the constraint.
+  const db = require('./config/database');
+  db.query(`DELETE FROM meals a USING meals b WHERE a.id > b.id AND a.name = b.name;
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_meals_name_unique ON meals(name);`)
+    .then((r) => { const n = Array.isArray(r) ? r[0].rowCount : r.rowCount; if (n) console.log(`🧹 Removed ${n} duplicate meal(s)`); })
+    .catch((e) => console.error('meal dedupe skipped:', e.message));
 });
 
 // Background jobs: missed-meal sweeps at session close + carryover expiry

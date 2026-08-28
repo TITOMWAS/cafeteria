@@ -161,6 +161,10 @@ ON CONFLICT DO NOTHING;
 UPDATE users SET student_id = 'CT207/119148/24' WHERE student_id = 'STUDENT001' AND role = 'student';
 
 -- Seed: Meal data
+-- Remove duplicate meals first (databases seeded before the name constraint existed)
+DELETE FROM meals a USING meals b WHERE a.id > b.id AND a.name = b.name;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_meals_name_unique ON meals(name);
+
 INSERT INTO meals (name, description, price, image_url, category, quantity_available) VALUES
   -- Breakfast
   ('Pancakes & Maple Syrup', 'Fluffy golden pancakes served with rich maple syrup and butter', 150, 'https://images.unsplash.com/photo-1528207776546-365bb710ee93?auto=format&fit=crop&w=600&q=80', 'breakfast', 30),
