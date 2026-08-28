@@ -13,6 +13,35 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
+// ---- Cloudflare R2 durable storage (optional) ----
+// When R2_MEDIA_URL + R2_MEDIA_SECRET are set, images are forwarded to the
+// media Worker (infra/r2-media) and stored permanently in a Cloudflare R2
+// bucket. Unset = local uploads/ dir only (fine for dev, but ephemeral on
+// hosts like Render where the disk is wiped on every deploy).
+const R2_MEDIA_URL = String(process.env.R2_MEDIA_URL || '').replace(/\/$/, '');
+const R2_MEDIA_SECRET = process.env.R2_MEDIA_SECRET || '';
+const r2Enabled = () => Boolean(R2_MEDIA_URL && R2_MEDIA_SECRET);
+
+const storeInR2 = async (file) => {
+  const buffer = await fs.promises.readFile(path.join(UPLOAD_DIR, file.filename));
+  const res = await fetch(`${R2_MEDIA_URL}/upload`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${R2_MEDIA_SECRET}`,
+      'Content-Type': file.mimetype,
+    },
+    body: buffer,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || `Media gateway responded ${res.status}`);
+  }
+  // Local copy no longer needed once safely stored in R2
+  await fs.promises.unlink(path.join(UPLOAD_DIR, file.filename)).catch(() => {});
+  return data.data.url;
+};
+
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOAD_DIR),
@@ -38,8 +67,18 @@ const uploadMealImage = [
       if (!req.file) {
         return res.status(400).json({ success: false, message: 'No image file provided (field name: "image")' });
       }
-      const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
-      const url = `${base}/uploads/${req.file.filename}`;
+      let url;
+      if (r2Enabled()) {
+        try {
+          url = await storeInR2(req.file); // durable Cloudflare R2 storage
+        } catch (err) {
+          console.error('R2 upload failed, keeping local copy:', err.message);
+        }
+      }
+      if (!url) {
+        const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+        url = `${base}/uploads/${req.file.filename}`;
+      }
       res.json({ success: true, data: { url } });
     } catch (error) {
       console.error('uploadMealImage error:', error);

@@ -1,6 +1,6 @@
 const pool = require('../config/database');
 const https = require('https');
-const { orderEvents } = require('../utils/events');
+const { orderEvents, emitOrderEvent } = require('../utils/events');
 const { logAudit } = require('../utils/auditLogger');
 
 // ==========================================
@@ -14,6 +14,19 @@ const PAYHERO_BASE_URL = process.env.PAYHERO_BASE_URL || 'https://backend.payher
 
 const payheroConfigured = () =>
   Boolean(process.env.PAYHERO_USERNAME && process.env.PAYHERO_PASSWORD);
+
+// PAYHERO_MODE controls which gateway the checkout hits:
+//   'sandbox'  -> full STK-shaped flow simulated locally (SBOX- references);
+//                 identical request/response contract, zero real money.
+//                 Use this to test before pointing at real credentials.
+//   'live'     -> real PayHero API (also the default when mode is unset but
+//                 credentials exist, preserving previous behaviour).
+//   'off'      -> no credentials at all: legacy mock_ simulated mode.
+const payheroMode = () => {
+  const mode = String(process.env.PAYHERO_MODE || '').trim().toLowerCase();
+  if (mode === 'sandbox') return 'sandbox'; // works with or without credentials
+  return payheroConfigured() ? 'live' : 'off';
+};
 
 const payheroAuthHeader = () =>
   'Basic ' + Buffer.from(`${process.env.PAYHERO_USERNAME}:${process.env.PAYHERO_PASSWORD}`).toString('base64');
@@ -146,15 +159,21 @@ const initiatePayment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Valid amount is required' });
     }
 
-    // Development mode: no PayHero credentials -> simulate a successful STK
-    // push so the entire checkout flow works end-to-end locally.
-    if (!payheroConfigured()) {
+    // Development modes: no credentials -> legacy mock references; PAYHERO_MODE=sandbox
+    // -> realistic STK-shaped sandbox flow (SBOX- references), still no real money.
+    if (payheroMode() !== 'live') {
+      const sandbox = payheroMode() === 'sandbox';
       return res.json({
         success: true,
         simulated: true,
+        sandbox,
         data: {
-          reference: `mock_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
-          message: 'Simulated M-Pesa STK push (development mode - configure PAYHERO_* to go live)'
+          reference: sandbox
+            ? `SBOX-CAF-${Date.now()}-${Math.floor(Math.random() * 10000)}`
+            : `mock_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+          message: sandbox
+            ? 'SANDBOX STK push simulated. Use this reference to place the order — no real M-Pesa charge is made.'
+            : 'Simulated M-Pesa STK push (development mode - configure PAYHERO_* to go live)'
         }
       });
     }
@@ -440,6 +459,12 @@ const verifyPayheroPayment = (reference) =>
 
     // Development mode: mock references auto-pass so the app is testable offline
     if (reference.startsWith('mock_')) return resolve({ success: true });
+
+    // Sandbox mode: SBOX- references pass verification without touching PayHero.
+    // Only honoured when PAYHERO_MODE=sandbox so they can never be replayed live.
+    if (reference.startsWith('SBOX-') && payheroMode() === 'sandbox') {
+      return resolve({ success: true, sandbox: true });
+    }
 
     if (!payheroConfigured()) {
       console.warn('verifyPayheroPayment: PAYHERO_* env vars not set; cannot verify real payment');

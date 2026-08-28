@@ -307,4 +307,4 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { login, register, staffLogin, setupTotp, resetTotp, refreshToken, forgotPassword, resetPassword };
+module.exports = { login, register, staffLogin, setupTotp, resetTotp, refreshToken, forgotPassword, resetPassword, captchaGuard };

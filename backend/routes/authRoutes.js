@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
-const { login, register, staffLogin, setupTotp, resetTotp, refreshToken, forgotPassword, resetPassword } = require('../controllers/authController');
+const { login, register, staffLogin, setupTotp, resetTotp, refreshToken, forgotPassword, resetPassword, captchaGuard } = require('../controllers/authController');
 const { protect, requireRole } = require('../middleware/authMiddleware');
 const { validateLogin, validateStaffLogin, validateRegister } = require('../middleware/validateMiddleware');
 
@@ -30,7 +30,12 @@ router.post('/register', validateRegister, (req, res, next) => {
     // Non-student registration requires admin auth
     return protect(req, res, () => requireRole('admin')(req, res, next));
   }
-  next();
+  // Public self-registration is captcha-gated (Cloudflare Turnstile).
+  // Admin-created accounts are already authenticated, so they skip the challenge.
+  (async () => {
+    if (!(await captchaGuard(req, res))) return;
+    next();
+  })();
 }, register);
 
 module.exports = router;

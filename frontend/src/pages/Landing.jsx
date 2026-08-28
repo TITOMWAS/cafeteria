@@ -24,6 +24,14 @@ const LoginModal = ({ onClose, onSuccess }) => {
   const [captchaKey, setCaptchaKey] = useState(0); // forces a fresh widget after each attempt
   const { addToast } = useToast();
 
+  // Switching forms discards any solved challenge - Turnstile tokens are
+  // single-use, so replaying a stale token would fail server-side verification.
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
+    setCaptchaToken('');
+    setCaptchaKey((k) => k + 1);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -104,7 +112,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
               </div>
               <Turnstile key={`login-${captchaKey}`} onToken={setCaptchaToken} />
               <button type="button" className="btn btn-ghost" style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--text-muted)' }}
-                onClick={() => setMode('forgot')}>
+                onClick={() => switchMode('forgot')}>
                 <KeyRound size={13} /> Forgot password?
               </button>
             </form>
@@ -141,7 +149,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
         </div>
         <div className="modal-footer">
           {mode !== 'login' && (
-            <button className="btn btn-secondary" onClick={() => setMode('login')}>Back to Login</button>
+            <button className="btn btn-secondary" onClick={() => switchMode('login')}>Back to Login</button>
           )}
           {mode === 'login' && (
             <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
