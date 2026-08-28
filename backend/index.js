@@ -24,14 +24,17 @@ app.set('trust proxy', process.env.TRUST_PROXY || 'loopback, linklocal, uniquelo
 
 // Middlewares
 // Extra origins (production domain etc.) come from CORS_ORIGINS as a comma-separated list.
+// Origins are normalized (trailing slash stripped) so 'https://site.vercel.app/' still matches
+// the slash-less Origin header browsers actually send.
+const normalizeOrigin = (o) => String(o).trim().replace(/\/+$/, '');
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  ...String(process.env.CORS_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean),
+  ...String(process.env.CORS_ORIGINS || '').split(',').map(normalizeOrigin).filter(Boolean),
 ];
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.indexOf(normalizeOrigin(origin)) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
