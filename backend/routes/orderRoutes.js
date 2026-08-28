@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { placeOrder, initiatePayment, getOrders, getMyOrders, updateOrderStatus, getAnalytics, streamOrders, exportOrdersCsv } = require('../controllers/orderController');
 const { getMyCarryovers, getAllCarryovers, redeemCarryover } = require('../controllers/carryOverController');
-const { protect, requireRole } = require('../middleware/authMiddleware');
+const { protect, optionalAuth, requireRole } = require('../middleware/authMiddleware');
 
-// Public (guests use this too, no auth required for placing)
-router.post('/', placeOrder);
+// Public (guests use this too; optionalAuth attributes orders to logged-in students)
+router.post('/', optionalAuth, placeOrder);
 router.post('/initiate-payment', initiatePayment);
 
 // Student - protected
