@@ -259,7 +259,7 @@ const getOrders = async (req, res) => {
     const total = countRes.rows[0].total;
 
     let query = `
-      SELECT o.*, COALESCE(u.name, u.student_id) AS student_name,
+      SELECT o.*, COALESCE(u.name, u.student_id) AS student_name, u.student_id AS student_reg,
              json_agg(json_build_object('meal_id', oi.meal_id, 'quantity', oi.quantity, 'name', oi.meal_name)) as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id

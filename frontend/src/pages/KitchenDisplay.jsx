@@ -49,7 +49,7 @@ const KitchenTile = ({ order, position, onAdvance }) => {
         <Timer size={15} /> waiting {mins} min{late && ' — OVERDUE'}
       </div>
       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
-        {order.guest_name || order.student_name || 'Walk-in'} · {formatDate(order.created_at)}
+        {order.guest_name || order.student_name || 'Walk-in'}{!order.guest_name && order.student_reg ? ` (${order.student_reg})` : ''} · {formatDate(order.created_at)}
       </p>
       <button
         className={`btn ${isPreparing ? 'btn-success' : 'btn-primary'} btn-full`}
